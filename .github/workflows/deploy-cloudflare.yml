@@ -8,15 +8,32 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: 准备发布目录
         run: |
           mkdir -p dist
-          if [ -f index.html ]; then cp index.html dist/; fi
-      - uses: cloudflare/wrangler-action@v3
+          if [ -f index.html ]; then
+            cp index.html dist/index.html
+          else
+            cp index_fixed-1.html dist/index.html
+          fi
+          ls -la dist
+
+      - name: 发布到 Cloudflare Pages
+        uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=${{ secrets.CLOUDFLARE_PROJECT_NAME }}
-
+          projectName: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
+          directory: dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
