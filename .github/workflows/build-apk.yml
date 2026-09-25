@@ -1,0 +1,59 @@
+name: 📱 打包安卓 APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 准备网页目录
+        run: |
+          mkdir -p www
+          if [ -f index.html ]; then
+            cp index.html www/index.html
+          else
+            cp index_fixed-1.html www/index.html
+          fi
+          echo "网页大小：$(wc -c < www/index.html) 字节"
+
+      - name: 安装 Capacitor
+        run: npm install --no-audit --no-fund
+
+      - name: 生成安卓工程并同步
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: 赋权并构建 APK
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug --no-daemon --stacktrace
+          ls -lh app/build/outputs/apk/debug/
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EDGE-APK
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 90
